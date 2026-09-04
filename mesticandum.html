@@ -256,23 +256,24 @@
 <div id="overlay">
   <div id="panel">
     <button id="close-panel">✕</button>
-    <h3>Fonte sostituzioni e uscite</h3>
+    <h3>Fonte sostituzioni</h3>
     <p class="help">
-      URL del Web App di Google Apps Script di SOStituto (lo stesso già usato per la condivisione con la vicepreside).
-      La pagina chiamerà <code>URL?action=sostituzioni&amp;data=AAAA-MM-GG</code> e
-      <code>URL?action=uscite&amp;data=AAAA-MM-GG</code>, aspettandosi JSON.
-      Formato atteso — sostituzioni: <code>[{"assente":"...","classeOra":"...","sostituto":"...","note":"..."}]</code>;
-      uscite: <code>[{"classi":"...","meta":"...","orario":"...","accompagnatori":"...","dataInizio":"AAAA-MM-GG","dataFine":"AAAA-MM-GG"}]</code>.
-      Se il formato reale è diverso, va adattata la funzione <code>normalizza*()</code> nel codice.
+      URL del Web App di Google Apps Script di SOStituto (lo stesso già usato per la condivisione con la vicepreside)
+      e la sua parola segreta. La pagina chiama <code>URL?token=...</code> — nessun'altra azione: il server risponde
+      sempre con l'intero registro, e qui si estrae solo il giorno di oggi. Le uscite didattiche vere non sono ancora
+      esposte da questo backend: per ora quella scheda si popola solo dagli eventi tipo "uscita" (sotto).
     </p>
     <label>URL Apps Script — SOStituto</label>
     <input type="url" id="cfg-url" placeholder="https://script.google.com/macros/s/xxxxx/exec">
+    <label>Parola segreta — SOStituto</label>
+    <input type="password" id="cfg-token-sost" placeholder="la stessa impostata in SOStituto">
 
-    <h3>Fonte eventi (attività funzionali / formazione)</h3>
+    <h3>Fonte eventi (attività funzionali / formazione / uscite)</h3>
     <p class="help">
       URL del Web App Apps Script dedicato a Mesticandum, dove le Funzioni strumentali inseriscono gli eventi dal loro modulo
       (file <code>mesticandum-eventi.html</code>). La pagina chiamerà <code>URL?action=eventi&amp;data=AAAA-MM-GG</code>,
-      aspettandosi un array JSON già filtrato per quella data.
+      aspettandosi un array JSON già filtrato per quella data. Gli eventi di tipo "uscita" finiscono nella scheda
+      "Uscite e altri eventi", insieme a quelle vere e proprie lette da SOStituto.
     </p>
     <label>URL Apps Script — Eventi Mesticandum</label>
     <input type="url" id="cfg-url-eventi" placeholder="https://script.google.com/macros/s/yyyyy/exec">
@@ -291,7 +292,7 @@
     <div class="row">
       <div>
         <label>Tipo</label>
-        <select id="ev-tipo"><option value="funzionale">Attività funzionale</option><option value="formazione">Formazione</option></select>
+        <select id="ev-tipo"><option value="funzionale">Attività funzionale</option><option value="formazione">Formazione</option><option value="uscita">Uscita / altro evento</option></select>
       </div>
       <div>
         <label>Ricorrenza</label>
@@ -342,10 +343,11 @@
       if(raw){
         var c = JSON.parse(raw);
         if(c.urlEventi === undefined) c.urlEventi = ""; // migrazione da versioni precedenti
+        if(c.tokenSost === undefined) c.tokenSost = "";
         return c;
       }
     }catch(e){}
-    return { url:"", urlEventi:"", refreshMin:5 };
+    return { url:"", urlEventi:"", tokenSost:"", refreshMin:5 };
   }
   function salvaCfg(cfg){
     try{ localStorage.setItem(LS_KEY_CFG, JSON.stringify(cfg)); }catch(e){}
@@ -364,14 +366,18 @@
   var cfg = caricaCfg();
   var eventiManuali = caricaEventi();
 
-  /* ---------- dati dimostrativi (usati finché non è impostato un URL reale) ---------- */
-  var DEMO_SOSTITUZIONI = [
-    { assente:"Rossi", classeOra:"2A · 3ª ora", sostituto:"Bianchi", note:"criterio: ore a disposizione" },
-    { assente:"Verdi", classeOra:"1C · 5ª ora", sostituto:"Neri", note:"criterio: potenziamento" }
+  /* ---------- dati dimostrativi (usati finché non è impostato un URL reale) ----------
+     Nella stessa forma delle righe vere del registro SOStituto, così passano dallo stesso
+     codice di lettura (estraiRigheSostituzioni) invece di avere un formato demo a parte. */
+  var DEMO_RIGHE_SOSTITUZIONI = [
+    { assente:"Rossi", classe:"2A", h:3, scelto:"Bianchi" },
+    { assente:"Verdi", classe:"1C", h:5, scelto:"Neri", tipo:"POT" }
   ];
-  var DEMO_USCITE = [
-    { classi:"3B", meta:"Museo del territorio", orario:"9:00–12:30", accompagnatori:"Colombo, Ferrari", dataInizio:oggiISO(), dataFine:oggiISO() }
-  ];
+  function rispostaDemoSostituzioni(){
+    var reg = {};
+    reg[oggiISO()] = { righe: DEMO_RIGHE_SOSTITUZIONI };
+    return { ok:true, dati:{ registro:reg } };
+  }
 
   /* ---------- utilità data/ora ---------- */
   function oggiISO(){
@@ -417,20 +423,43 @@
     });
   }
 
-  /* ---------- normalizzazione dati sostituzioni / uscite ----------
-     Adattare qui se il JSON restituito dall'Apps Script ha una forma diversa. */
-  function normalizzaSostituzioni(arr){
-    return (arr||[]).map(function(s){
-      return {
-        titolo: (s.assente||"?") + " → " + (s.sostituto||"?"),
-        quando: s.classeOra || s.ora || "",
-        dettagli: s.note || s.criterio || ""
-      };
-    });
+  /* ---------- lettura sostituzioni dal vero backend SOStituto ----------
+     Il bridge di SOStituto non ha "azioni": un'unica chiamata con ?token=... restituisce
+     SEMPRE l'intero stato { ok, dati:{ registro:{ "AAAA-MM-GG":{ righe:[...] } } }, info }.
+     Qui si estrae solo il giorno richiesto e si rispecchia esattamente la logica di
+     etichettatura già usata da scriviVista() nello script (stesso tipo/oneri mostrati
+     nel foglio "sostituzioni"), così i due punti di vista restano coerenti.
+     Restituisce null se il server ha risposto con un errore esplicito (es. token errato). */
+  function estraiRigheSostituzioni(risposta, iso){
+    if(!risposta || risposta.ok === false) return null;
+    var reg = (risposta.dati && risposta.dati.registro) || {};
+    var voci = (reg[iso] && reg[iso].righe) || [];
+    return voci
+      .filter(function(r){ return !!r.scelto; })
+      .map(function(r){
+        var tipo = r.tipo === "AIRC" ? "Attività alternativa"
+                 : (r.tipo && /AFFIAN/i.test(r.tipo)) ? "Affiancamento alla classe"
+                 : (r.gruppo && r.lingua) ? "Sostituzione · gruppo " + (r.lingua === "FR" ? "francese" : "spagnolo")
+                 : "Sostituzione del curricolare";
+        var oneri = /pagamento/.test(r.motivo || "") ? "A PAGAMENTO"
+                  : (r.motivo === "recupero" ? "Recupero" : "");
+        return {
+          titolo: (r.assente||"?") + " → " + r.scelto,
+          quando: [(r.gruppo || r.classe || ""), (r.h ? r.h + "ª ora" : "")].filter(Boolean).join(" · "),
+          dettagli: [tipo, oneri].filter(Boolean).join(" · ")
+        };
+      });
   }
+
+  /* ---------- uscite didattiche vere e proprie ----------
+     Il bridge di SOStituto oggi espone solo il registro sostituzioni: non c'è ancora un canale
+     per le uscite. Questa funzione resta pronta per quando/se ne verrà esposto uno (stessa forma
+     già concordata: classi/meta/orario/accompagnatori/dataInizio/dataFine) — per ora non è collegata
+     a nessun fetch, e la scheda "Uscite e altri eventi" si popola solo dagli eventi tipo "uscita". */
   function normalizzaUscite(arr){
+    if(!Array.isArray(arr)) return [];
     var oggi = oggiISO();
-    return (arr||[])
+    return arr
       .filter(function(u){
         var ini = u.dataInizio || oggi, fine = u.dataFine || ini;
         return ini <= oggi && oggi <= fine;
@@ -463,50 +492,64 @@
      Il server restituisce già solo gli eventi validi per la data richiesta (data precisa o ricorrenza
      settimanale già risolta lato Apps Script), quindi qui si filtra solo per tipo. */
   function normalizzaEventi(arr, tipo){
-    return (arr||[])
+    if(!Array.isArray(arr)) return [];
+    return arr
       .filter(function(e){ return (e.tipo||"funzionale") === tipo; })
       .map(function(e){
         return { titolo: e.titolo, quando: e.orario||"", dettagli: [e.note, e.autore ? ("inserito da " + e.autore) : ""].filter(Boolean).join(" · ") };
       });
   }
 
-  /* ---------- caricamento dati (reali se configurati, altrimenti demo) ---------- */
+  /* ---------- caricamento dati (reali se configurati, altrimenti demo) ----------
+     La scheda "Uscite e altri eventi" combina due fonti: le uscite vere e proprie da SOStituto
+     e gli eventi di tipo "uscita" inseriti dalle Funzioni strumentali (più le aggiunte rapide locali).
+     Per questo il caricamento di uscite ed eventi è coordinato con Promise.allSettled invece di
+     due fetch indipendenti che scriverebbero la stessa scheda in ordine imprevedibile. */
   function caricaERendi(){
     var iso = oggiISO();
     var banner = document.getElementById("demo-banner");
 
+    /* Sostituzioni: un'unica chiamata con ?token=..., nessuna azione — il server restituisce
+       sempre l'intero stato e qui si estrae solo il giorno di oggi. */
+    var promessaSostituzioni;
     if(cfg.url){
       banner.classList.remove("show");
-      fetch(cfg.url + "?action=sostituzioni&data=" + iso)
-        .then(function(r){ return r.json(); })
-        .then(function(json){ renderLista("lista-sostituzioni", normalizzaSostituzioni(json), "Nessuna sostituzione per oggi."); })
-        .catch(function(){ renderLista("lista-sostituzioni", [], "Impossibile leggere i dati (controlla l'URL nelle Impostazioni)."); });
-
-      fetch(cfg.url + "?action=uscite&data=" + iso)
-        .then(function(r){ return r.json(); })
-        .then(function(json){ renderLista("lista-uscite", normalizzaUscite(json), "Nessuna uscita né altro evento oggi."); })
-        .catch(function(){ renderLista("lista-uscite", [], "Impossibile leggere i dati (controlla l'URL nelle Impostazioni)."); });
+      promessaSostituzioni = fetch(cfg.url + "?token=" + encodeURIComponent(cfg.tokenSost || ""))
+        .then(function(r){ return r.json(); });
     } else {
       banner.classList.add("show");
-      renderLista("lista-sostituzioni", normalizzaSostituzioni(DEMO_SOSTITUZIONI), "Nessuna sostituzione per oggi.");
-      renderLista("lista-uscite", normalizzaUscite(DEMO_USCITE), "Nessuna uscita né altro evento oggi.");
+      promessaSostituzioni = Promise.resolve(rispostaDemoSostituzioni());
     }
+    promessaSostituzioni
+      .then(function(risposta){
+        var righe = estraiRigheSostituzioni(risposta, iso);
+        if(righe === null){
+          var errore = (risposta && risposta.errore) ? risposta.errore : "controlla URL e parola segreta nelle Impostazioni";
+          renderLista("lista-sostituzioni", [], "Impossibile leggere i dati (" + errore + ").");
+        } else {
+          renderLista("lista-sostituzioni", righe, "Nessuna sostituzione per oggi.");
+        }
+      })
+      .catch(function(){ renderLista("lista-sostituzioni", [], "Impossibile leggere i dati (controlla l'URL SOStituto nelle Impostazioni)."); });
 
-    if(cfg.urlEventi){
-      fetch(cfg.urlEventi + "?action=eventi&data=" + iso)
-        .then(function(r){ return r.json(); })
-        .then(function(json){
-          renderLista("lista-funzionali", normalizzaEventi(json,"funzionale").concat(eventiLocaliDiOggi("funzionale")), "Nessuna attività funzionale oggi.");
-          renderLista("lista-formazione", normalizzaEventi(json,"formazione").concat(eventiLocaliDiOggi("formazione")), "Nessun impegno di formazione oggi.");
-        })
-        .catch(function(){
-          renderLista("lista-funzionali", eventiLocaliDiOggi("funzionale"), "Impossibile leggere i dati (controlla l'URL Eventi nelle Impostazioni).");
-          renderLista("lista-formazione", eventiLocaliDiOggi("formazione"), "Impossibile leggere i dati (controlla l'URL Eventi nelle Impostazioni).");
-        });
-    } else {
-      renderLista("lista-funzionali", eventiLocaliDiOggi("funzionale"), "Nessuna attività funzionale oggi.");
-      renderLista("lista-formazione", eventiLocaliDiOggi("formazione"), "Nessun impegno di formazione oggi.");
-    }
+    /* Uscite / attività funzionali / formazione: un'unica fonte, il backend Eventi Mesticandum,
+       più le aggiunte rapide locali. Non c'è (ancora) un canale SOStituto per le uscite vere. */
+    var promessaEventi = cfg.urlEventi
+      ? fetch(cfg.urlEventi + "?action=eventi&data=" + iso).then(function(r){ return r.json(); })
+      : Promise.resolve([]);
+
+    promessaEventi
+      .then(function(eventiJson){
+        renderLista("lista-uscite", normalizzaEventi(eventiJson,"uscita").concat(eventiLocaliDiOggi("uscita")), "Nessuna uscita né altro evento oggi.");
+        renderLista("lista-funzionali", normalizzaEventi(eventiJson,"funzionale").concat(eventiLocaliDiOggi("funzionale")), "Nessuna attività funzionale oggi.");
+        renderLista("lista-formazione", normalizzaEventi(eventiJson,"formazione").concat(eventiLocaliDiOggi("formazione")), "Nessun impegno di formazione oggi.");
+      })
+      .catch(function(){
+        var msg = "Impossibile leggere i dati (controlla l'URL Eventi nelle Impostazioni).";
+        renderLista("lista-uscite", eventiLocaliDiOggi("uscita"), msg);
+        renderLista("lista-funzionali", eventiLocaliDiOggi("funzionale"), msg);
+        renderLista("lista-formazione", eventiLocaliDiOggi("formazione"), msg);
+      });
 
     document.getElementById("ultimo-agg").textContent = "Aggiornato alle " + pad(new Date().getHours())+":"+pad(new Date().getMinutes());
   }
@@ -515,6 +558,7 @@
   var overlay = document.getElementById("overlay");
   document.getElementById("gear").addEventListener("click", function(){
     document.getElementById("cfg-url").value = cfg.url || "";
+    document.getElementById("cfg-token-sost").value = cfg.tokenSost || "";
     document.getElementById("cfg-url-eventi").value = cfg.urlEventi || "";
     document.getElementById("cfg-refresh").value = cfg.refreshMin || 5;
     renderEventiManualiPanel();
@@ -529,6 +573,7 @@
 
   document.getElementById("salva-fonte").addEventListener("click", function(){
     cfg.url = document.getElementById("cfg-url").value.trim();
+    cfg.tokenSost = document.getElementById("cfg-token-sost").value.trim();
     cfg.urlEventi = document.getElementById("cfg-url-eventi").value.trim();
     cfg.refreshMin = parseInt(document.getElementById("cfg-refresh").value, 10) || 5;
     salvaCfg(cfg);
@@ -572,7 +617,7 @@
       div.className = "evento-manuale";
       div.innerHTML =
         '<div class="info"><b>'+escapeHtml(e.titolo)+'</b>'+
-        '<span>'+(e.tipo==="funzionale"?"Attività funzionale":"Formazione")+' · '+escapeHtml(when)+(e.orario?" · "+escapeHtml(e.orario):"")+'</span></div>'+
+        '<span>'+({funzionale:"Attività funzionale",formazione:"Formazione",uscita:"Uscita / altro evento"}[e.tipo]||e.tipo)+' · '+escapeHtml(when)+(e.orario?" · "+escapeHtml(e.orario):"")+'</span></div>'+
         '<button class="btn btn-danger" data-id="'+e.id+'" style="margin-top:0;">Elimina</button>';
       div.querySelector("button").addEventListener("click", function(){
         eventiManuali = eventiManuali.filter(function(x){ return x.id !== e.id; });
