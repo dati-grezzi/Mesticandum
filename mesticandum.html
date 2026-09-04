@@ -495,10 +495,13 @@
     if(cfg.urlEventi){
       fetch(cfg.urlEventi + "?action=eventi&data=" + iso)
         .then(function(r){ return r.json(); })
-        .catch(function(){ return []; })
         .then(function(json){
           renderLista("lista-funzionali", normalizzaEventi(json,"funzionale").concat(eventiLocaliDiOggi("funzionale")), "Nessuna attività funzionale oggi.");
           renderLista("lista-formazione", normalizzaEventi(json,"formazione").concat(eventiLocaliDiOggi("formazione")), "Nessun impegno di formazione oggi.");
+        })
+        .catch(function(){
+          renderLista("lista-funzionali", eventiLocaliDiOggi("funzionale"), "Impossibile leggere i dati (controlla l'URL Eventi nelle Impostazioni).");
+          renderLista("lista-formazione", eventiLocaliDiOggi("formazione"), "Impossibile leggere i dati (controlla l'URL Eventi nelle Impostazioni).");
         });
     } else {
       renderLista("lista-funzionali", eventiLocaliDiOggi("funzionale"), "Nessuna attività funzionale oggi.");
