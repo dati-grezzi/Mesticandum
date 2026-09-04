@@ -1,0 +1,603 @@
+<!doctype html>
+<html lang="it">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Mesticandum — Agenda del giorno</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Zilla+Slab:wght@500;600;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --avorio:#F3EFE6;
+    --avorio-alt:#EAE4D6;
+    --inchiostro:#1B2430;
+    --inchiostro-soft:#3B4657;
+    --rosso:#B23A2E;
+    --rosso-soft:#E4572E;
+    --petrolio:#14344A;
+    --petrolio-soft:#1F4E5F;
+    --bordo:#D8CFBB;
+    --ok:#3F6B4A;
+  }
+  *{box-sizing:border-box;}
+  html,body{
+    margin:0;padding:0;height:100%;
+    background:var(--avorio);
+    color:var(--inchiostro);
+    font-family:'Inter',system-ui,sans-serif;
+    overflow:hidden;
+  }
+  #app{
+    display:flex;flex-direction:column;
+    height:100vh;width:100vw;
+    padding:1.4vw 2vw;
+  }
+  header{
+    display:flex;justify-content:space-between;align-items:flex-end;
+    border-bottom:0.3vw solid var(--petrolio);
+    padding-bottom:1vw;margin-bottom:1.2vw;
+  }
+  header .scuola{
+    display:flex;align-items:center;gap:0.8vw;
+  }
+  #logo-slot svg{
+    width:2.6vw;height:2.6vw;
+    stroke:var(--petrolio);
+    fill:none;
+    stroke-width:1.6;
+    stroke-linecap:round;
+    stroke-linejoin:round;
+  }
+  header .scuola-testi{
+    font-family:'Zilla Slab',serif;
+    font-weight:700;
+    font-size:1.8vw;
+    letter-spacing:0.02em;
+  }
+  .wordmark .w-mestica{color:var(--petrolio);}
+  .wordmark .w-ndum{color:var(--rosso);}
+  header .scuola small{
+    display:block;
+    font-family:'Inter',sans-serif;
+    font-weight:500;
+    font-size:0.9vw;
+    color:var(--inchiostro-soft);
+    letter-spacing:0.04em;
+    text-transform:uppercase;
+    margin-top:0.2vw;
+  }
+  header .data-ora{
+    text-align:right;
+  }
+  header .data{
+    font-family:'Zilla Slab',serif;
+    font-weight:600;
+    font-size:2.1vw;
+    color:var(--inchiostro);
+    text-transform:capitalize;
+  }
+  header .ora{
+    font-size:1.3vw;
+    color:var(--rosso);
+    font-weight:700;
+    font-variant-numeric:tabular-nums;
+  }
+  #demo-banner{
+    display:none;
+    background:var(--rosso);
+    color:var(--avorio);
+    font-weight:600;
+    font-size:0.95vw;
+    text-align:center;
+    padding:0.5vw;
+    border-radius:0.4vw;
+    margin-bottom:1vw;
+    letter-spacing:0.03em;
+  }
+  #demo-banner.show{display:block;}
+  main{
+    flex:1;
+    display:grid;
+    grid-template-columns:1fr 1fr;
+    grid-template-rows:1fr 1fr;
+    gap:1.2vw;
+    min-height:0;
+  }
+  .card{
+    background:#fff;
+    border:0.12vw solid var(--bordo);
+    border-radius:0.8vw;
+    display:flex;flex-direction:column;
+    min-height:0;
+    overflow:hidden;
+    box-shadow:0 0.15vw 0.4vw rgba(27,36,48,0.06);
+  }
+  .card h2{
+    margin:0;
+    font-family:'Zilla Slab',serif;
+    font-size:1.35vw;
+    font-weight:600;
+    color:#fff;
+    padding:0.6vw 1vw;
+    display:flex;align-items:center;gap:0.6vw;
+  }
+  .card h2 .icon{font-size:1.2vw;}
+  .card.sostituzioni h2{background:var(--rosso);}
+  .card.uscite h2{background:var(--petrolio);}
+  .card.funzionali h2{background:var(--petrolio-soft);}
+  .card.formazione h2{background:var(--inchiostro-soft);}
+  .card .body{
+    flex:1;overflow-y:auto;padding:0.8vw 1vw;
+  }
+  .riga{
+    display:flex;flex-direction:column;
+    padding:0.5vw 0.2vw;
+    border-bottom:0.06vw solid var(--avorio-alt);
+    font-size:1.05vw;
+    line-height:1.35;
+  }
+  .riga:last-child{border-bottom:none;}
+  .riga .top{
+    display:flex;justify-content:space-between;gap:0.6vw;
+    font-weight:600;
+  }
+  .riga .top .chi{color:var(--inchiostro);}
+  .riga .top .quando{color:var(--rosso);white-space:nowrap;font-weight:700;}
+  .riga .dettagli{color:var(--inchiostro-soft);font-size:0.92vw;margin-top:0.1vw;}
+  .vuoto{
+    color:var(--inchiostro-soft);
+    font-style:italic;
+    font-size:1.05vw;
+    padding:0.8vw 0.2vw;
+    opacity:0.75;
+  }
+  footer{
+    margin-top:0.8vw;
+    display:flex;justify-content:space-between;align-items:center;
+    font-size:0.75vw;color:var(--inchiostro-soft);
+  }
+  #gear{
+    cursor:pointer;
+    border:none;background:none;
+    font-size:1.1vw;
+    color:var(--inchiostro-soft);
+    opacity:0.5;
+  }
+  #gear:hover{opacity:1;}
+
+  /* --- pannello impostazioni --- */
+  #overlay{
+    position:fixed;inset:0;background:rgba(27,36,48,0.55);
+    display:none;align-items:center;justify-content:center;
+    z-index:50;
+  }
+  #overlay.show{display:flex;}
+  #panel{
+    background:var(--avorio);
+    width:min(700px,92vw);
+    max-height:86vh;overflow-y:auto;
+    border-radius:12px;
+    padding:24px 28px;
+    font-size:14px;
+    box-shadow:0 10px 40px rgba(0,0,0,0.3);
+  }
+  #panel h3{font-family:'Zilla Slab',serif;color:var(--petrolio);margin:18px 0 8px;font-size:17px;}
+  #panel h3:first-child{margin-top:0;}
+  #panel p.help{color:var(--inchiostro-soft);font-size:12.5px;margin:2px 0 10px;line-height:1.5;}
+  #panel label{display:block;font-weight:600;margin-top:10px;margin-bottom:4px;}
+  #panel input[type=text],#panel input[type=url],#panel input[type=date],#panel input[type=time],#panel select{
+    width:100%;padding:7px 9px;border:1px solid var(--bordo);border-radius:6px;font-size:13.5px;font-family:inherit;
+  }
+  #panel .row{display:flex;gap:8px;}
+  #panel .row > *{flex:1;}
+  .btn{
+    display:inline-block;padding:8px 16px;border-radius:6px;border:none;
+    font-weight:600;font-size:13.5px;cursor:pointer;margin-top:10px;
+  }
+  .btn-primary{background:var(--petrolio);color:#fff;}
+  .btn-danger{background:var(--rosso);color:#fff;}
+  .btn-ghost{background:none;border:1px solid var(--bordo);color:var(--inchiostro);}
+  #close-panel{float:right;background:none;border:none;font-size:20px;cursor:pointer;color:var(--inchiostro-soft);}
+  .evento-manuale{
+    border:1px solid var(--bordo);border-radius:8px;padding:10px 12px;margin-bottom:8px;
+    display:flex;justify-content:space-between;align-items:flex-start;gap:8px;background:#fff;
+  }
+  .evento-manuale .info b{display:block;}
+  .evento-manuale .info span{color:var(--inchiostro-soft);font-size:12px;}
+  code{background:var(--avorio-alt);padding:1px 5px;border-radius:4px;font-size:12px;}
+</style>
+</head>
+<body>
+<div id="app">
+  <header>
+    <div class="scuola">
+      <span id="logo-slot">
+        <svg viewBox="0 0 40 40"><path d="M4 10 C4 8 8 6 20 8 C32 6 36 8 36 10 L36 32 C36 34 32 32 20 34 C8 32 4 34 4 32 Z"/><line x1="20" y1="8" x2="20" y2="34"/></svg>
+      </span>
+      <span class="scuola-testi">
+        <span class="wordmark"><span class="w-mestica">Mestica</span><span class="w-ndum">ndum</span></span>
+        <small>Agenda del giorno — Istituto Comprensivo "Enrico Mestica", plesso Mestica</small>
+      </span>
+    </div>
+    <div class="data-ora">
+      <div class="data" id="data-oggi">—</div>
+      <div class="ora" id="ora-live">—</div>
+    </div>
+  </header>
+
+  <div id="demo-banner">Dati dimostrativi — collega le fonti reali dalle Impostazioni (⚙)</div>
+
+  <main>
+    <div class="card sostituzioni">
+      <h2><span class="icon">⇄</span> Sostituzioni di oggi</h2>
+      <div class="body" id="lista-sostituzioni"></div>
+    </div>
+    <div class="card uscite">
+      <h2><span class="icon">📍</span> Uscite e altri eventi</h2>
+      <div class="body" id="lista-uscite"></div>
+    </div>
+    <div class="card funzionali">
+      <h2><span class="icon">📋</span> Attività funzionali</h2>
+      <div class="body" id="lista-funzionali"></div>
+    </div>
+    <div class="card formazione">
+      <h2><span class="icon">🎓</span> Formazione</h2>
+      <div class="body" id="lista-formazione"></div>
+    </div>
+  </main>
+
+  <footer>
+    <span id="ultimo-agg">Aggiornato alle —</span>
+    <button id="gear" title="Impostazioni">⚙ Impostazioni</button>
+  </footer>
+</div>
+
+<div id="overlay">
+  <div id="panel">
+    <button id="close-panel">✕</button>
+    <h3>Fonte sostituzioni e uscite</h3>
+    <p class="help">
+      URL del Web App di Google Apps Script di SOStituto (lo stesso già usato per la condivisione con la vicepreside).
+      La pagina chiamerà <code>URL?action=sostituzioni&amp;data=AAAA-MM-GG</code> e
+      <code>URL?action=uscite&amp;data=AAAA-MM-GG</code>, aspettandosi JSON.
+      Formato atteso — sostituzioni: <code>[{"assente":"...","classeOra":"...","sostituto":"...","note":"..."}]</code>;
+      uscite: <code>[{"classi":"...","meta":"...","orario":"...","accompagnatori":"...","dataInizio":"AAAA-MM-GG","dataFine":"AAAA-MM-GG"}]</code>.
+      Se il formato reale è diverso, va adattata la funzione <code>normalizza*()</code> nel codice.
+    </p>
+    <label>URL Apps Script — SOStituto</label>
+    <input type="url" id="cfg-url" placeholder="https://script.google.com/macros/s/xxxxx/exec">
+
+    <h3>Fonte eventi (attività funzionali / formazione)</h3>
+    <p class="help">
+      URL del Web App Apps Script dedicato a Mesticandum, dove le Funzioni strumentali inseriscono gli eventi dal loro modulo
+      (file <code>mesticandum-eventi.html</code>). La pagina chiamerà <code>URL?action=eventi&amp;data=AAAA-MM-GG</code>,
+      aspettandosi un array JSON già filtrato per quella data.
+    </p>
+    <label>URL Apps Script — Eventi Mesticandum</label>
+    <input type="url" id="cfg-url-eventi" placeholder="https://script.google.com/macros/s/yyyyy/exec">
+
+    <div class="row">
+      <div>
+        <label>Aggiorna ogni (minuti)</label>
+        <input type="text" id="cfg-refresh" placeholder="5">
+      </div>
+    </div>
+    <button class="btn btn-primary" id="salva-fonte">Salva</button>
+
+    <h3>Aggiunta rapida locale (solo su questo schermo)</h3>
+    <p class="help">Per un'aggiunta al volo da qui, senza passare dal modulo. Vale solo su questo dispositivo — le Funzioni strumentali non la vedono; per eventi visibili a tutti da qualunque dispositivo usa il modulo web.</p>
+    <div id="lista-eventi-manuali"></div>
+    <div class="row">
+      <div>
+        <label>Tipo</label>
+        <select id="ev-tipo"><option value="funzionale">Attività funzionale</option><option value="formazione">Formazione</option></select>
+      </div>
+      <div>
+        <label>Ricorrenza</label>
+        <select id="ev-ricorrenza">
+          <option value="data">Data precisa</option>
+          <option value="1">Ogni lunedì</option>
+          <option value="2">Ogni martedì</option>
+          <option value="3">Ogni mercoledì</option>
+          <option value="4">Ogni giovedì</option>
+          <option value="5">Ogni venerdì</option>
+        </select>
+      </div>
+      <div id="ev-data-wrap">
+        <label>Data</label>
+        <input type="date" id="ev-data">
+      </div>
+    </div>
+    <div class="row">
+      <div>
+        <label>Titolo</label>
+        <input type="text" id="ev-titolo" placeholder="es. Consiglio di classe 2A">
+      </div>
+      <div>
+        <label>Orario</label>
+        <input type="text" id="ev-orario" placeholder="es. 16:30–18:00">
+      </div>
+    </div>
+    <label>Note (facoltativo)</label>
+    <input type="text" id="ev-note" placeholder="es. Aula docenti">
+    <button class="btn btn-primary" id="aggiungi-evento">Aggiungi</button>
+
+    <h3>Riavvio automatico</h3>
+    <p class="help">La pagina si ricarica da sola al cambio di giorno e ricontrolla i dati a intervalli regolari: pensata per restare aperta sul monitor della sala docenti senza bisogno di intervenire.</p>
+  </div>
+</div>
+
+<script>
+(function(){
+  "use strict";
+
+  /* ---------- configurazione ---------- */
+  var LS_KEY_CFG = "mestica_agenda_cfg_v1";
+  var LS_KEY_EVENTI = "mestica_agenda_eventi_v1";
+
+  function caricaCfg(){
+    try{
+      var raw = localStorage.getItem(LS_KEY_CFG);
+      if(raw){
+        var c = JSON.parse(raw);
+        if(c.urlEventi === undefined) c.urlEventi = ""; // migrazione da versioni precedenti
+        return c;
+      }
+    }catch(e){}
+    return { url:"", urlEventi:"", refreshMin:5 };
+  }
+  function salvaCfg(cfg){
+    try{ localStorage.setItem(LS_KEY_CFG, JSON.stringify(cfg)); }catch(e){}
+  }
+  function caricaEventi(){
+    try{
+      var raw = localStorage.getItem(LS_KEY_EVENTI);
+      if(raw) return JSON.parse(raw);
+    }catch(e){}
+    return [];
+  }
+  function salvaEventi(list){
+    try{ localStorage.setItem(LS_KEY_EVENTI, JSON.stringify(list)); }catch(e){}
+  }
+
+  var cfg = caricaCfg();
+  var eventiManuali = caricaEventi();
+
+  /* ---------- dati dimostrativi (usati finché non è impostato un URL reale) ---------- */
+  var DEMO_SOSTITUZIONI = [
+    { assente:"Rossi", classeOra:"2A · 3ª ora", sostituto:"Bianchi", note:"criterio: ore a disposizione" },
+    { assente:"Verdi", classeOra:"1C · 5ª ora", sostituto:"Neri", note:"criterio: potenziamento" }
+  ];
+  var DEMO_USCITE = [
+    { classi:"3B", meta:"Museo del territorio", orario:"9:00–12:30", accompagnatori:"Colombo, Ferrari", dataInizio:oggiISO(), dataFine:oggiISO() }
+  ];
+
+  /* ---------- utilità data/ora ---------- */
+  function oggiISO(){
+    var d = new Date();
+    return d.getFullYear()+"-"+pad(d.getMonth()+1)+"-"+pad(d.getDate());
+  }
+  function pad(n){ return n<10 ? "0"+n : ""+n; }
+
+  var GIORNI = ["domenica","lunedì","martedì","mercoledì","giovedì","venerdì","sabato"];
+  var MESI = ["gennaio","febbraio","marzo","aprile","maggio","giugno","luglio","agosto","settembre","ottobre","novembre","dicembre"];
+
+  function aggiornaTestata(){
+    var d = new Date();
+    document.getElementById("data-oggi").textContent =
+      GIORNI[d.getDay()] + " " + d.getDate() + " " + MESI[d.getMonth()] + " " + d.getFullYear();
+    document.getElementById("ora-live").textContent =
+      pad(d.getHours()) + ":" + pad(d.getMinutes()) + ":" + pad(d.getSeconds());
+  }
+
+  /* ---------- rendering liste ---------- */
+  function renderLista(elId, righe, vuotoTxt){
+    var el = document.getElementById(elId);
+    el.innerHTML = "";
+    if(!righe || righe.length === 0){
+      var v = document.createElement("div");
+      v.className = "vuoto";
+      v.textContent = vuotoTxt;
+      el.appendChild(v);
+      return;
+    }
+    righe.forEach(function(r){
+      var div = document.createElement("div");
+      div.className = "riga";
+      div.innerHTML =
+        '<div class="top"><span class="chi">'+escapeHtml(r.titolo)+'</span><span class="quando">'+escapeHtml(r.quando||"")+'</span></div>'+
+        (r.dettagli ? '<div class="dettagli">'+escapeHtml(r.dettagli)+'</div>' : "");
+      el.appendChild(div);
+    });
+  }
+  function escapeHtml(s){
+    return String(s==null?"":s).replace(/[&<>"']/g, function(c){
+      return {"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c];
+    });
+  }
+
+  /* ---------- normalizzazione dati sostituzioni / uscite ----------
+     Adattare qui se il JSON restituito dall'Apps Script ha una forma diversa. */
+  function normalizzaSostituzioni(arr){
+    return (arr||[]).map(function(s){
+      return {
+        titolo: (s.assente||"?") + " → " + (s.sostituto||"?"),
+        quando: s.classeOra || s.ora || "",
+        dettagli: s.note || s.criterio || ""
+      };
+    });
+  }
+  function normalizzaUscite(arr){
+    var oggi = oggiISO();
+    return (arr||[])
+      .filter(function(u){
+        var ini = u.dataInizio || oggi, fine = u.dataFine || ini;
+        return ini <= oggi && oggi <= fine;
+      })
+      .map(function(u){
+        return {
+          titolo: (u.classi||"?") + " — " + (u.meta||""),
+          quando: u.orario || "",
+          dettagli: u.accompagnatori ? "Accompagnatori: " + u.accompagnatori : ""
+        };
+      });
+  }
+
+  /* ---------- eventi: aggiunte rapide locali (solo questo schermo) ---------- */
+  function eventiLocaliDiOggi(tipo){
+    var isoOggi = oggiISO();
+    var wd = new Date().getDay(); // 0=domenica..6=sabato
+    return eventiManuali
+      .filter(function(e){ return e.tipo === tipo; })
+      .filter(function(e){
+        if(e.ricorrenza === "data") return e.data === isoOggi;
+        return String(e.ricorrenza) === String(wd);
+      })
+      .map(function(e){
+        return { titolo: e.titolo, quando: e.orario||"", dettagli: e.note||"" };
+      });
+  }
+
+  /* ---------- eventi: dal modulo delle Funzioni strumentali (backend condiviso) ----------
+     Il server restituisce già solo gli eventi validi per la data richiesta (data precisa o ricorrenza
+     settimanale già risolta lato Apps Script), quindi qui si filtra solo per tipo. */
+  function normalizzaEventi(arr, tipo){
+    return (arr||[])
+      .filter(function(e){ return (e.tipo||"funzionale") === tipo; })
+      .map(function(e){
+        return { titolo: e.titolo, quando: e.orario||"", dettagli: [e.note, e.autore ? ("inserito da " + e.autore) : ""].filter(Boolean).join(" · ") };
+      });
+  }
+
+  /* ---------- caricamento dati (reali se configurati, altrimenti demo) ---------- */
+  function caricaERendi(){
+    var iso = oggiISO();
+    var banner = document.getElementById("demo-banner");
+
+    if(cfg.url){
+      banner.classList.remove("show");
+      fetch(cfg.url + "?action=sostituzioni&data=" + iso)
+        .then(function(r){ return r.json(); })
+        .then(function(json){ renderLista("lista-sostituzioni", normalizzaSostituzioni(json), "Nessuna sostituzione per oggi."); })
+        .catch(function(){ renderLista("lista-sostituzioni", [], "Impossibile leggere i dati (controlla l'URL nelle Impostazioni)."); });
+
+      fetch(cfg.url + "?action=uscite&data=" + iso)
+        .then(function(r){ return r.json(); })
+        .then(function(json){ renderLista("lista-uscite", normalizzaUscite(json), "Nessuna uscita né altro evento oggi."); })
+        .catch(function(){ renderLista("lista-uscite", [], "Impossibile leggere i dati (controlla l'URL nelle Impostazioni)."); });
+    } else {
+      banner.classList.add("show");
+      renderLista("lista-sostituzioni", normalizzaSostituzioni(DEMO_SOSTITUZIONI), "Nessuna sostituzione per oggi.");
+      renderLista("lista-uscite", normalizzaUscite(DEMO_USCITE), "Nessuna uscita né altro evento oggi.");
+    }
+
+    if(cfg.urlEventi){
+      fetch(cfg.urlEventi + "?action=eventi&data=" + iso)
+        .then(function(r){ return r.json(); })
+        .catch(function(){ return []; })
+        .then(function(json){
+          renderLista("lista-funzionali", normalizzaEventi(json,"funzionale").concat(eventiLocaliDiOggi("funzionale")), "Nessuna attività funzionale oggi.");
+          renderLista("lista-formazione", normalizzaEventi(json,"formazione").concat(eventiLocaliDiOggi("formazione")), "Nessun impegno di formazione oggi.");
+        });
+    } else {
+      renderLista("lista-funzionali", eventiLocaliDiOggi("funzionale"), "Nessuna attività funzionale oggi.");
+      renderLista("lista-formazione", eventiLocaliDiOggi("formazione"), "Nessun impegno di formazione oggi.");
+    }
+
+    document.getElementById("ultimo-agg").textContent = "Aggiornato alle " + pad(new Date().getHours())+":"+pad(new Date().getMinutes());
+  }
+
+  /* ---------- pannello impostazioni ---------- */
+  var overlay = document.getElementById("overlay");
+  document.getElementById("gear").addEventListener("click", function(){
+    document.getElementById("cfg-url").value = cfg.url || "";
+    document.getElementById("cfg-url-eventi").value = cfg.urlEventi || "";
+    document.getElementById("cfg-refresh").value = cfg.refreshMin || 5;
+    renderEventiManualiPanel();
+    overlay.classList.add("show");
+  });
+  document.getElementById("close-panel").addEventListener("click", function(){
+    overlay.classList.remove("show");
+  });
+  overlay.addEventListener("click", function(e){
+    if(e.target === overlay) overlay.classList.remove("show");
+  });
+
+  document.getElementById("salva-fonte").addEventListener("click", function(){
+    cfg.url = document.getElementById("cfg-url").value.trim();
+    cfg.urlEventi = document.getElementById("cfg-url-eventi").value.trim();
+    cfg.refreshMin = parseInt(document.getElementById("cfg-refresh").value, 10) || 5;
+    salvaCfg(cfg);
+    caricaERendi();
+  });
+
+  document.getElementById("ev-ricorrenza").addEventListener("change", function(){
+    document.getElementById("ev-data-wrap").style.display = this.value === "data" ? "" : "none";
+  });
+
+  document.getElementById("aggiungi-evento").addEventListener("click", function(){
+    var titolo = document.getElementById("ev-titolo").value.trim();
+    if(!titolo) return;
+    eventiManuali.push({
+      id: Date.now(),
+      tipo: document.getElementById("ev-tipo").value,
+      ricorrenza: document.getElementById("ev-ricorrenza").value,
+      data: document.getElementById("ev-data").value,
+      titolo: titolo,
+      orario: document.getElementById("ev-orario").value.trim(),
+      note: document.getElementById("ev-note").value.trim()
+    });
+    salvaEventi(eventiManuali);
+    document.getElementById("ev-titolo").value = "";
+    document.getElementById("ev-orario").value = "";
+    document.getElementById("ev-note").value = "";
+    renderEventiManualiPanel();
+    caricaERendi();
+  });
+
+  function renderEventiManualiPanel(){
+    var el = document.getElementById("lista-eventi-manuali");
+    el.innerHTML = "";
+    if(eventiManuali.length === 0){
+      el.innerHTML = '<p class="help">Nessun evento inserito.</p>';
+      return;
+    }
+    eventiManuali.forEach(function(e){
+      var when = e.ricorrenza === "data" ? e.data : ("ogni " + GIORNI[parseInt(e.ricorrenza,10)]);
+      var div = document.createElement("div");
+      div.className = "evento-manuale";
+      div.innerHTML =
+        '<div class="info"><b>'+escapeHtml(e.titolo)+'</b>'+
+        '<span>'+(e.tipo==="funzionale"?"Attività funzionale":"Formazione")+' · '+escapeHtml(when)+(e.orario?" · "+escapeHtml(e.orario):"")+'</span></div>'+
+        '<button class="btn btn-danger" data-id="'+e.id+'" style="margin-top:0;">Elimina</button>';
+      div.querySelector("button").addEventListener("click", function(){
+        eventiManuali = eventiManuali.filter(function(x){ return x.id !== e.id; });
+        salvaEventi(eventiManuali);
+        renderEventiManualiPanel();
+        caricaERendi();
+      });
+      el.appendChild(div);
+    });
+  }
+
+  /* ---------- avvio + cicli di aggiornamento ---------- */
+  aggiornaTestata();
+  caricaERendi();
+  setInterval(aggiornaTestata, 1000);
+
+  var giornoRenderizzato = oggiISO();
+  setInterval(function(){
+    if(oggiISO() !== giornoRenderizzato){
+      location.reload(); // cambio di giorno: ricarica pulita
+    }
+  }, 30000);
+
+  setInterval(function(){
+    caricaERendi();
+  }, Math.max(1, cfg.refreshMin || 5) * 60000);
+
+})();
+</script>
+</body>
+</html>
