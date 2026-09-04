@@ -219,7 +219,7 @@
     ev.preventDefault();
     var msg = document.getElementById("msg");
     var btn = document.getElementById("btn-invia");
-    msg.className = ""; msg.style.display = "none";
+    msg.className = ""; msg.style.display = "";
 
     if(!backendUrl){
       msg.textContent = "Modulo non ancora collegato al backend.";
