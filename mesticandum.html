@@ -206,6 +206,34 @@
   .evento-manuale .info b{display:block;}
   .evento-manuale .info span{color:var(--inchiostro-soft);font-size:12px;}
   code{background:var(--avorio-alt);padding:1px 5px;border-radius:4px;font-size:12px;}
+
+  /* --- versione da telefono/tablet: pensata per il monitor della sala docenti,
+         qui evitiamo solo che il pulsante Impostazioni resti "fuori schermo" --- */
+  @media (max-width: 820px){
+    html,body{ overflow:auto; height:auto; }
+    #app{ height:auto; min-height:100dvh; min-height:100vh; padding:5vw 6vw; }
+    header{ flex-wrap:wrap; gap:2vw; }
+    #logo-slot svg{ width:28px; height:28px; }
+    header .scuola-testi{ font-size:20px; }
+    header .scuola small{ font-size:10px; }
+    header .data{ font-size:18px; }
+    header .ora{ font-size:14px; }
+    #demo-banner{ font-size:12px; }
+    main{
+      display:flex; flex-direction:column;
+      grid-template-columns:none; grid-template-rows:none;
+      gap:3vw;
+    }
+    .card{ min-height:110px; }
+    .card h2{ font-size:15px; padding:8px 12px; }
+    .card h2 .icon{ font-size:14px; }
+    .card .body{ font-size:13px; padding:8px 12px; max-height:38vh; }
+    .riga{ font-size:13px; }
+    .riga .dettagli{ font-size:11px; }
+    .vuoto{ font-size:13px; }
+    footer{ font-size:11px; padding-bottom:2vw; }
+    #gear{ font-size:14px; opacity:0.85; padding:6px 4px; }
+  }
 </style>
 </head>
 <body>
