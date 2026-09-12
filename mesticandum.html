@@ -152,6 +152,20 @@
     padding:0.8vw 0.2vw;
     opacity:0.75;
   }
+  /* --- riepilogo dei prossimi giorni: stessa scheda, sotto agli eventi di oggi,
+         a carattere più piccolo (non riguarda le Sostituzioni, solo di oggi) --- */
+  .prossimi-titolo{
+    margin-top:0.7vw;padding-top:0.4vw;
+    border-top:0.06vw dashed var(--bordo);
+    font-size:0.72vw;font-weight:700;text-transform:uppercase;letter-spacing:0.05em;
+    color:var(--inchiostro-soft);opacity:0.7;
+  }
+  .prossimi-giorno{
+    font-size:0.82vw;font-weight:700;color:var(--petrolio-soft);
+    margin-top:0.5vw;margin-bottom:0.05vw;
+  }
+  .riga-mini{ padding:0.22vw 0.2vw;font-size:0.82vw;opacity:0.85; }
+  .riga-mini .dettagli{ font-size:0.74vw; }
   footer{
     margin-top:0.8vw;
     display:flex;justify-content:space-between;align-items:center;
@@ -231,6 +245,10 @@
     .riga{ font-size:13px; }
     .riga .dettagli{ font-size:11px; }
     .vuoto{ font-size:13px; }
+    .prossimi-titolo{ font-size:10px; margin-top:10px; padding-top:6px; }
+    .prossimi-giorno{ font-size:11.5px; margin-top:8px; }
+    .riga-mini{ font-size:11px; }
+    .riga-mini .dettagli{ font-size:10px; }
     footer{ font-size:11px; padding-bottom:2vw; }
     #gear{ font-size:14px; opacity:0.85; padding:6px 4px; }
   }
@@ -413,9 +431,24 @@
     return d.getFullYear()+"-"+pad(d.getMonth()+1)+"-"+pad(d.getDate());
   }
   function pad(n){ return n<10 ? "0"+n : ""+n; }
+  function addDays(iso, n){
+    var p = iso.split("-").map(Number);
+    var d = new Date(p[0], p[1]-1, p[2]);
+    d.setDate(d.getDate()+n);
+    return d.getFullYear()+"-"+pad(d.getMonth()+1)+"-"+pad(d.getDate());
+  }
 
   var GIORNI = ["domenica","lunedì","martedì","mercoledì","giovedì","venerdì","sabato"];
+  var GIORNI_BREVI = ["Dom","Lun","Mar","Mer","Gio","Ven","Sab"];
   var MESI = ["gennaio","febbraio","marzo","aprile","maggio","giugno","luglio","agosto","settembre","ottobre","novembre","dicembre"];
+  var N_GIORNI_PROSSIMI = 6; // quanti giorni dopo oggi guardare, in ogni scheda tranne Sostituzioni
+
+  function etichettaGiorno(iso){
+    if(iso === addDays(oggiISO(), 1)) return "Domani";
+    var p = iso.split("-").map(Number);
+    var d = new Date(p[0], p[1]-1, p[2]);
+    return GIORNI_BREVI[d.getDay()] + " " + pad(p[2]) + "/" + pad(p[1]);
+  }
 
   function aggiornaTestata(){
     var d = new Date();
@@ -449,6 +482,43 @@
     return String(s==null?"":s).replace(/[&<>"']/g, function(c){
       return {"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c];
     });
+  }
+  function creaRiga(r, mini){
+    var div = document.createElement("div");
+    div.className = mini ? "riga riga-mini" : "riga";
+    div.innerHTML =
+      '<div class="top"><span class="chi">'+escapeHtml(r.titolo)+'</span><span class="quando">'+escapeHtml(r.quando||"")+'</span></div>'+
+      (r.dettagli ? '<div class="dettagli">'+escapeHtml(r.dettagli)+'</div>' : "");
+    return div;
+  }
+  /* Come renderLista, ma sotto agli eventi di oggi aggiunge — a carattere più piccolo — un
+     riepilogo dei prossimi giorni con eventi (i giorni senza nulla non compaiono affatto).
+     "prossimi" è un array di { iso, righe } già filtrato/mappato dal chiamante. */
+  function renderListaConProssimi(elId, righeOggi, vuotoOggiTxt, prossimi){
+    var el = document.getElementById(elId);
+    el.innerHTML = "";
+    if(!righeOggi || righeOggi.length === 0){
+      var v = document.createElement("div");
+      v.className = "vuoto";
+      v.textContent = vuotoOggiTxt;
+      el.appendChild(v);
+    } else {
+      righeOggi.forEach(function(r){ el.appendChild(creaRiga(r)); });
+    }
+    var conRoba = (prossimi||[]).filter(function(g){ return g.righe && g.righe.length; });
+    if(conRoba.length){
+      var sep = document.createElement("div");
+      sep.className = "prossimi-titolo";
+      sep.textContent = "Nei prossimi giorni";
+      el.appendChild(sep);
+      conRoba.forEach(function(g){
+        var gh = document.createElement("div");
+        gh.className = "prossimi-giorno";
+        gh.textContent = etichettaGiorno(g.iso);
+        el.appendChild(gh);
+        g.righe.forEach(function(r){ el.appendChild(creaRiga(r, true)); });
+      });
+    }
   }
 
   /* ---------- lettura sostituzioni dal vero backend SOStituto ----------
@@ -501,20 +571,23 @@
       });
   }
 
-  /* ---------- eventi: aggiunte rapide locali (solo questo schermo) ---------- */
-  function eventiLocaliDiOggi(tipo){
-    var isoOggi = oggiISO();
-    var wd = new Date().getDay(); // 0=domenica..6=sabato
+  /* ---------- eventi: aggiunte rapide locali (solo questo schermo) ----------
+     Generalizzata per accettare una data qualsiasi (non solo oggi), così le stesse aggiunte
+     rapide/ricorrenti settimanali compaiono anche nel riepilogo dei prossimi giorni. */
+  function eventiLocaliPerData(tipo, iso){
+    var p = iso.split("-").map(Number);
+    var wd = new Date(p[0], p[1]-1, p[2]).getDay(); // 0=domenica..6=sabato
     return eventiManuali
       .filter(function(e){ return e.tipo === tipo; })
       .filter(function(e){
-        if(e.ricorrenza === "data") return e.data === isoOggi;
+        if(e.ricorrenza === "data") return e.data === iso;
         return String(e.ricorrenza) === String(wd);
       })
       .map(function(e){
         return { titolo: e.titolo, quando: e.orario||"", dettagli: e.note||"" };
       });
   }
+  function eventiLocaliDiOggi(tipo){ return eventiLocaliPerData(tipo, oggiISO()); }
 
   /* ---------- eventi: dal modulo delle Funzioni strumentali (backend condiviso) ----------
      Il server restituisce già solo gli eventi validi per la data richiesta (data precisa o ricorrenza
@@ -561,22 +634,50 @@
       .catch(function(){ renderLista("lista-sostituzioni", [], "Impossibile leggere i dati (controlla l'URL SOStituto nelle Impostazioni)."); });
 
     /* Uscite / attività funzionali / formazione: un'unica fonte, il backend Eventi Mesticandum,
-       più le aggiunte rapide locali. Non c'è (ancora) un canale SOStituto per le uscite vere. */
-    var promessaEventi = cfg.urlEventi
+       più le aggiunte rapide locali. Non c'è (ancora) un canale SOStituto per le uscite vere.
+       Oltre a oggi, si guarda anche ai prossimi N_GIORNI_PROSSIMI giorni (una interrogazione
+       per giorno: il backend non ha un'azione "intervallo", ma il carico è minimo e la pagina
+       aggiorna solo ogni pochi minuti), per mostrarli sotto, a carattere più piccolo. Questo
+       riepilogo NON riguarda la scheda Sostituzioni, che resta solo sul giorno corrente.*/
+    var isoProssimi = [];
+    for(var k=1;k<=N_GIORNI_PROSSIMI;k++){ isoProssimi.push(addDays(iso,k)); }
+
+    var promessaEventiOggi = cfg.urlEventi
       ? fetch(cfg.urlEventi + "?action=eventi&data=" + iso).then(function(r){ return r.json(); })
       : Promise.resolve([]);
+    var promesseProssimi = isoProssimi.map(function(gIso){
+      if(!cfg.urlEventi) return Promise.resolve({ iso:gIso, arr:[] });
+      return fetch(cfg.urlEventi + "?action=eventi&data=" + gIso)
+        .then(function(r){ return r.json(); })
+        .catch(function(){ return []; })
+        .then(function(arr){ return { iso: gIso, arr: arr }; });
+    });
 
-    promessaEventi
-      .then(function(eventiJson){
-        renderLista("lista-uscite", normalizzaEventi(eventiJson,"uscita").concat(eventiLocaliDiOggi("uscita")), "Nessuna uscita né altro evento oggi.");
-        renderLista("lista-funzionali", normalizzaEventi(eventiJson,"funzionale").concat(eventiLocaliDiOggi("funzionale")), "Nessuna attività funzionale oggi.");
-        renderLista("lista-formazione", normalizzaEventi(eventiJson,"formazione").concat(eventiLocaliDiOggi("formazione")), "Nessun impegno di formazione oggi.");
+    var DEF_TIPI = [
+      { tipo:"uscita",     elId:"lista-uscite",     vuoto:"Nessuna uscita né altro evento oggi." },
+      { tipo:"funzionale", elId:"lista-funzionali", vuoto:"Nessuna attività funzionale oggi." },
+      { tipo:"formazione", elId:"lista-formazione", vuoto:"Nessun impegno di formazione oggi." }
+    ];
+
+    promessaEventiOggi
+      .then(function(eventiJsonOggi){
+        return Promise.all(promesseProssimi).then(function(risultatiProssimi){
+          DEF_TIPI.forEach(function(d){
+            var righeOggi = normalizzaEventi(eventiJsonOggi, d.tipo).concat(eventiLocaliPerData(d.tipo, iso));
+            var prossimi = risultatiProssimi.map(function(rp){
+              return { iso: rp.iso, righe: normalizzaEventi(rp.arr, d.tipo).concat(eventiLocaliPerData(d.tipo, rp.iso)) };
+            });
+            renderListaConProssimi(d.elId, righeOggi, d.vuoto, prossimi);
+          });
+        });
       })
       .catch(function(){
         var msg = "Impossibile leggere i dati (controlla l'URL Eventi nelle Impostazioni).";
-        renderLista("lista-uscite", eventiLocaliDiOggi("uscita"), msg);
-        renderLista("lista-funzionali", eventiLocaliDiOggi("funzionale"), msg);
-        renderLista("lista-formazione", eventiLocaliDiOggi("formazione"), msg);
+        DEF_TIPI.forEach(function(d){
+          var righeOggi = eventiLocaliPerData(d.tipo, iso);
+          var prossimi = isoProssimi.map(function(gIso){ return { iso:gIso, righe: eventiLocaliPerData(d.tipo, gIso) }; });
+          renderListaConProssimi(d.elId, righeOggi, msg, prossimi);
+        });
       });
 
     document.getElementById("ultimo-agg").textContent = "Aggiornato alle " + pad(new Date().getHours())+":"+pad(new Date().getMinutes());
