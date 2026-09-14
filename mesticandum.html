@@ -263,7 +263,7 @@
       </span>
       <span class="scuola-testi">
         <span class="wordmark"><span class="w-mestica">Mestica</span><span class="w-ndum">ndum</span></span>
-        <small>Agenda del giorno — Istituto Comprensivo "VIA TACITO", plesso Mestica</small>
+        <small>Agenda del giorno — Istituto Comprensivo "Enrico Mestica", plesso Mestica</small>
       </span>
     </div>
     <div class="data-ora">
@@ -331,17 +331,11 @@
       </div>
     </div>
     <button class="btn btn-primary" id="salva-fonte">Salva</button>
-
-    <h3>Link di configurazione per un altro dispositivo</h3>
-    <p class="help">
-      Comodo per configurare in un colpo la LIM o un altro PC senza ridigitare nulla: genera un link che, aperto UNA VOLTA
-      su quel dispositivo, salva automaticamente qui sopra i valori attuali e poi torna a un URL normale (i dati restano
-      solo nella memoria di quel browser, non nel link stesso). Il link contiene la parola segreta in chiaro finché non
-      lo apri: non incollarlo in chat, email non protette o luoghi che restano salvati pubblicamente — solo per portarlo
-      da qui a quel dispositivo (es. te lo mandi da solo su WhatsApp, o lo digiti a mano).
+    <p class="help" style="margin-top:8px;">
+      Gli URL dei due Apps Script sono già precompilati di default (non sono un segreto: da soli non permettono
+      di leggere nulla). Su un dispositivo nuovo (es. la LIM) l'unica cosa da digitare a mano, una volta, resta
+      la parola segreta di SOStituto qui sopra — corta, niente link da trascrivere.
     </p>
-    <button class="btn btn-ghost" id="genera-link-cfg" type="button">Genera link di configurazione</button>
-    <input type="text" id="link-cfg-generato" readonly onclick="this.select()" style="display:none;margin-top:8px;">
 
     <h3>Aggiunta rapida locale (solo su questo schermo)</h3>
     <p class="help">Per un'aggiunta al volo da qui, senza passare dal modulo. Vale solo su questo dispositivo — le Funzioni strumentali non la vedono; per eventi visibili a tutti da qualunque dispositivo usa il modulo web.</p>
@@ -394,6 +388,15 @@
   var LS_KEY_CFG = "mestica_agenda_cfg_v1";
   var LS_KEY_EVENTI = "mestica_agenda_eventi_v1";
 
+  /* URL dei due Apps Script: NON sono un segreto (senza la parola d'ordine non permettono di
+     leggere/scrivere nulla di sensibile), quindi si possono scrivere qui in chiaro come default —
+     a differenza della parola segreta di SOStituto, che resta sempre da digitare a mano una volta
+     per dispositivo e non viene mai scritta nel codice. Serve solo su un dispositivo NUOVO che non
+     ha ancora nulla salvato: una volta premuto "Salva" in Impostazioni, da lì in avanti conta solo
+     quello che c'è in localStorage su quel browser, anche se questi default cambiassero in futuro. */
+  var URL_SOSTITUTO_DEFAULT = "https://script.google.com/macros/s/AKfycbw0ZHdlNTSYIFLOsNjeAEzR7CvA_GsYiOGHmqIjw2dnvHBPbKQ6GpAwGQxMhWvDLY15Wg/exec";
+  var URL_EVENTI_DEFAULT = "https://script.google.com/macros/s/AKfycbxNQ8nA3sOSj6xicP_TOHU1uC313A87WpPpo_Akagn9DghHsTSom29DaQL5gyFcmmUh/exec";
+
   function caricaCfg(){
     try{
       var raw = localStorage.getItem(LS_KEY_CFG);
@@ -404,7 +407,7 @@
         return c;
       }
     }catch(e){}
-    return { url:"", urlEventi:"", tokenSost:"", refreshMin:5 };
+    return { url: URL_SOSTITUTO_DEFAULT, urlEventi: URL_EVENTI_DEFAULT, tokenSost:"", refreshMin:5 };
   }
   function salvaCfg(cfg){
     try{ localStorage.setItem(LS_KEY_CFG, JSON.stringify(cfg)); }catch(e){}
@@ -422,27 +425,6 @@
 
   var cfg = caricaCfg();
   var eventiManuali = caricaEventi();
-
-  /* ---------- link di configurazione "una tantum" per un nuovo dispositivo ----------
-     Alternativa a scrivere gli URL/parole segrete direttamente nell'HTML: il repo su GitHub
-     è pubblico, quindi qualsiasi valore scritto nel file (anche se poi tolto con un commit
-     successivo) resterebbe recuperabile per sempre dalla cronologia di git. Qui invece i valori
-     viaggiano SOLO nella query string di un link generato al volo (mai committato), che al primo
-     caricamento salva tutto in localStorage e poi pulisce l'URL dalla barra degli indirizzi. */
-  (function applicaConfigDaLink(){
-    var qs = new URLSearchParams(location.search);
-    var cambiato = false;
-    if(qs.has("preurl")){ cfg.url = qs.get("preurl"); cambiato = true; }
-    if(qs.has("pretoken")){ cfg.tokenSost = qs.get("pretoken"); cambiato = true; }
-    if(qs.has("preurlev")){ cfg.urlEventi = qs.get("preurlev"); cambiato = true; }
-    if(qs.has("prerefresh")){ cfg.refreshMin = parseInt(qs.get("prerefresh"), 10) || cfg.refreshMin; cambiato = true; }
-    if(cambiato){
-      salvaCfg(cfg);
-      // rimane "?impostazioni" così il pannello si apre comunque, per far vedere che è andato a buon fine,
-      // ma senza più i valori in chiaro nella barra degli indirizzi né nella cronologia del browser da qui in avanti
-      history.replaceState(null, "", location.origin + location.pathname + "?impostazioni");
-    }
-  })();
 
   /* ---------- dati dimostrativi (usati finché non è impostato un URL reale) ----------
      Nella stessa forma delle righe vere del registro SOStituto, così passano dallo stesso
@@ -740,24 +722,6 @@
     cfg.refreshMin = parseInt(document.getElementById("cfg-refresh").value, 10) || 5;
     salvaCfg(cfg);
     caricaERendi();
-  });
-
-  document.getElementById("genera-link-cfg").addEventListener("click", function(){
-    var params = new URLSearchParams();
-    params.set("impostazioni", "1");
-    var u = document.getElementById("cfg-url").value.trim();
-    var t = document.getElementById("cfg-token-sost").value.trim();
-    var ue = document.getElementById("cfg-url-eventi").value.trim();
-    var rf = document.getElementById("cfg-refresh").value.trim();
-    if(u) params.set("preurl", u);
-    if(t) params.set("pretoken", t);
-    if(ue) params.set("preurlev", ue);
-    if(rf) params.set("prerefresh", rf);
-    var link = location.origin + location.pathname + "?" + params.toString();
-    var out = document.getElementById("link-cfg-generato");
-    out.value = link;
-    out.style.display = "";
-    out.select();
   });
 
   document.getElementById("ev-ricorrenza").addEventListener("change", function(){
