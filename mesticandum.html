@@ -658,23 +658,19 @@
 
     /* Uscite / attività funzionali / formazione: un'unica fonte, il backend Eventi Mesticandum,
        più le aggiunte rapide locali. Non c'è (ancora) un canale SOStituto per le uscite vere.
-       Oltre a oggi, si guarda anche ai prossimi N_GIORNI_PROSSIMI giorni (una interrogazione
-       per giorno: il backend non ha un'azione "intervallo", ma il carico è minimo e la pagina
-       aggiorna solo ogni pochi minuti), per mostrarli sotto, a carattere più piccolo. Questo
-       riepilogo NON riguarda la scheda Sostituzioni, che resta solo sul giorno corrente.*/
+       Oltre a oggi, si guarda anche ai prossimi N_GIORNI_PROSSIMI giorni, per mostrarli sotto,
+       a carattere più piccolo. Questo riepilogo NON riguarda la scheda Sostituzioni, che resta
+       solo sul giorno corrente.
+       IMPORTANTE: una SOLA chiamata (azione "eventiRange", che risponde con tutti i giorni in
+       un colpo) — richiedere ogni giorno con una fetch separata (7 richieste quasi simultanee)
+       faceva sì che Apps Script ne rifiutasse/perdesse alcune. */
     var isoProssimi = [];
     for(var k=1;k<=N_GIORNI_PROSSIMI;k++){ isoProssimi.push(addDays(iso,k)); }
+    var giorniTotali = 1 + N_GIORNI_PROSSIMI;
 
-    var promessaEventiOggi = cfg.urlEventi
-      ? fetch(cfg.urlEventi + "?action=eventi&data=" + iso).then(function(r){ return r.json(); })
-      : Promise.resolve([]);
-    var promesseProssimi = isoProssimi.map(function(gIso){
-      if(!cfg.urlEventi) return Promise.resolve({ iso:gIso, arr:[] });
-      return fetch(cfg.urlEventi + "?action=eventi&data=" + gIso)
-        .then(function(r){ return r.json(); })
-        .catch(function(){ return []; })
-        .then(function(arr){ return { iso: gIso, arr: arr }; });
-    });
+    var promessaEventi = cfg.urlEventi
+      ? fetch(cfg.urlEventi + "?action=eventiRange&data=" + iso + "&giorni=" + giorniTotali).then(function(r){ return r.json(); })
+      : Promise.resolve({});
 
     var DEF_TIPI = [
       { tipo:"uscita",     elId:"lista-uscite",     vuoto:"Nessuna uscita né altro evento oggi." },
@@ -682,16 +678,15 @@
       { tipo:"formazione", elId:"lista-formazione", vuoto:"Nessun impegno di formazione oggi." }
     ];
 
-    promessaEventiOggi
-      .then(function(eventiJsonOggi){
-        return Promise.all(promesseProssimi).then(function(risultatiProssimi){
-          DEF_TIPI.forEach(function(d){
-            var righeOggi = normalizzaEventi(eventiJsonOggi, d.tipo).concat(eventiLocaliPerData(d.tipo, iso));
-            var prossimi = risultatiProssimi.map(function(rp){
-              return { iso: rp.iso, righe: normalizzaEventi(rp.arr, d.tipo).concat(eventiLocaliPerData(d.tipo, rp.iso)) };
-            });
-            renderListaConProssimi(d.elId, righeOggi, d.vuoto, prossimi);
+    promessaEventi
+      .then(function(mappaGiorni){
+        if(!mappaGiorni || typeof mappaGiorni !== "object" || Array.isArray(mappaGiorni)) mappaGiorni = {};
+        DEF_TIPI.forEach(function(d){
+          var righeOggi = normalizzaEventi(mappaGiorni[iso], d.tipo).concat(eventiLocaliPerData(d.tipo, iso));
+          var prossimi = isoProssimi.map(function(gIso){
+            return { iso: gIso, righe: normalizzaEventi(mappaGiorni[gIso], d.tipo).concat(eventiLocaliPerData(d.tipo, gIso)) };
           });
+          renderListaConProssimi(d.elId, righeOggi, d.vuoto, prossimi);
         });
       })
       .catch(function(){
