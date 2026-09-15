@@ -783,8 +783,15 @@
   setInterval(aggiornaTestata, 1000);
 
   // Link diretto alle Impostazioni (utile su dispositivi come la LIM dove il tocco sulla
-  // rotellina non arriva a destinazione): basta aprire mesticandum.html?impostazioni
-  if(new URLSearchParams(location.search).has("impostazioni")){
+  // rotellina non arriva a destinazione). Due modi, per compatibilità con browser diversi:
+  //  1) aprire mesticandum.html?impostazioni (funziona sui browser normali)
+  //  2) aprire impostazioni.html (il file "ponte"): scrive un segnale in sessionStorage e
+  //     rimanda qui — utile sui browser "a schermo intero" delle LIM che a volte perdono
+  //     il punto interrogativo quando si salva un collegamento rapido.
+  var apriImpostazioniDaSegnale = false;
+  try { apriImpostazioniDaSegnale = sessionStorage.getItem("mestica_apri_impostazioni") === "1"; } catch(err){}
+  if(apriImpostazioniDaSegnale || location.search.indexOf("impostazioni") !== -1){
+    try { sessionStorage.removeItem("mestica_apri_impostazioni"); } catch(err){}
     apriPannelloImpostazioni();
   }
 
