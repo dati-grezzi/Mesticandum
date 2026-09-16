@@ -719,10 +719,16 @@
     renderEventiManualiPanel();
     overlay.classList.add("show");
   }
-  document.getElementById("gear").addEventListener("click", apriPannelloImpostazioni);
   // Tutta la fascia del footer apre le Impostazioni, non solo la rotellina (vedi nota CSS):
   // così su schermi grandi/touch impreciso basta toccare in un punto qualsiasi in basso.
-  document.querySelector("footer").addEventListener("click", apriPannelloImpostazioni);
+  // Registriamo più tipi di evento (non solo "click") perché su alcuni browser di LIM/lavagne
+  // il tocco con il dito non genera sempre un "click" affidabile: con "touchend"/"pointerup"
+  // copriamo anche quei casi. apriPannelloImpostazioni() può essere chiamata più volte senza
+  // problemi (si limita a riportare i valori salvati nei campi e mostrare il pannello).
+  ["click", "touchend", "pointerup"].forEach(function(tipoEvento){
+    document.getElementById("gear").addEventListener(tipoEvento, apriPannelloImpostazioni);
+    document.querySelector("footer").addEventListener(tipoEvento, apriPannelloImpostazioni);
+  });
   document.getElementById("close-panel").addEventListener("click", function(){
     overlay.classList.remove("show");
   });
