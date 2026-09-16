@@ -1,0 +1,115 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Mesticandum — Impostazioni</title>
+<style>
+  body{
+    font-family:Arial, Helvetica, sans-serif;
+    background:#0b1220;color:#1b2430;margin:0;padding:20px;
+  }
+  .box{
+    max-width:640px;margin:0 auto;background:#fff;border-radius:10px;
+    padding:24px 28px;box-shadow:0 2px 10px rgba(0,0,0,0.25);
+  }
+  h1{ font-size:22px;margin:0 0 4px; }
+  p.help{ color:#555;font-size:14px;margin:4px 0 20px; }
+  label{ display:block;font-weight:bold;font-size:14px;margin:16px 0 4px; }
+  input[type=text], input[type=password], input[type=url]{
+    width:100%;box-sizing:border-box;padding:10px;font-size:15px;
+    border:1px solid #ccc;border-radius:6px;
+  }
+  button{
+    margin-top:22px;padding:12px 20px;font-size:16px;font-weight:bold;
+    background:#1b6b52;color:#fff;border:none;border-radius:6px;cursor:pointer;
+  }
+  button:active{ background:#134d3b; }
+  #msg{ margin-top:16px;font-weight:bold;display:none; }
+  #msg.ok{ color:#1b6b52;display:block; }
+  #msg.err{ color:#b23; display:block; }
+  a.torna{ display:inline-block;margin-top:18px;font-size:14px; }
+</style>
+</head>
+<body>
+<div class="box">
+  <h1>Impostazioni Mesticandum</h1>
+  <p class="help">
+    Questa è una pagina separata e semplice, pensata per i dispositivi (come alcune LIM) su
+    cui il pannello Impostazioni della pagina principale non si apre correttamente. Qui salvi
+    gli stessi dati: appena premi "Salva", torna alla pagina principale e ricaricala per
+    vederli in uso.
+  </p>
+
+  <label for="cfg-url">URL Apps Script — SOStituto</label>
+  <input type="url" id="cfg-url" placeholder="https://script.google.com/macros/s/xxxxx/exec">
+
+  <label for="cfg-token-sost">Parola segreta — SOStituto</label>
+  <input type="password" id="cfg-token-sost" placeholder="la stessa impostata in SOStituto">
+
+  <label for="cfg-url-eventi">URL Apps Script — Eventi Mesticandum</label>
+  <input type="url" id="cfg-url-eventi" placeholder="https://script.google.com/macros/s/xxxxx/exec">
+
+  <label for="cfg-refresh">Aggiorna ogni (minuti)</label>
+  <input type="text" id="cfg-refresh" placeholder="5">
+
+  <button id="salva">Salva</button>
+  <div id="msg"></div>
+  <br>
+  <a class="torna" href="mesticandum.html">← Torna alla pagina principale</a>
+</div>
+
+<script>
+  // Stessa "cassetta" (localStorage) che usa mesticandum.html: stessa chiave, stesso formato.
+  // Questa pagina è volutamente semplicissima (niente fetch, niente overlay, niente ascolto
+  // di più eventi): serve solo a leggere/scrivere quei dati anche su browser che con la
+  // pagina principale hanno problemi.
+  var LS_KEY_CFG = "mestica_agenda_cfg_v1";
+
+  // Stessi indirizzi di partenza usati in mesticandum.html: non sono un segreto (senza la
+  // parola d'ordine non permettono di fare nulla), servono solo a pre-compilare il campo
+  // la prima volta che si apre questa pagina su un dispositivo nuovo.
+  var URL_SOSTITUTO_DEFAULT = "https://script.google.com/macros/s/AKfycbw0ZHdlNTSYIFLOsNjeAEzR7CvA_GsYiOGHmqIjw2dnvHBPbKQ6GpAwGQxMhWvDLY15Wg/exec";
+  var URL_EVENTI_DEFAULT = "https://script.google.com/macros/s/AKfycbxNQ8nA3sOSj6xicP_TOHU1uC313A87WpPpo_Akagn9DghHsTSom29DaQL5gyFcmmUh/exec";
+
+  function caricaCfg(){
+    try{
+      var raw = localStorage.getItem(LS_KEY_CFG);
+      if(raw){
+        var c = JSON.parse(raw);
+        if(c.urlEventi === undefined) c.urlEventi = "";
+        return c;
+      }
+    }catch(e){}
+    return { url: URL_SOSTITUTO_DEFAULT, urlEventi: URL_EVENTI_DEFAULT, tokenSost:"", refreshMin:5 };
+  }
+
+  var cfg = caricaCfg();
+  document.getElementById("cfg-url").value = cfg.url || "";
+  document.getElementById("cfg-token-sost").value = cfg.tokenSost || "";
+  document.getElementById("cfg-url-eventi").value = cfg.urlEventi || "";
+  document.getElementById("cfg-refresh").value = cfg.refreshMin || 5;
+
+  function mostraMsg(testo, ok){
+    var el = document.getElementById("msg");
+    el.textContent = testo;
+    el.className = ok ? "ok" : "err";
+  }
+
+  document.getElementById("salva").onclick = function(){
+    var nuovoCfg = {
+      url: document.getElementById("cfg-url").value.replace(/^\s+|\s+$/g, ""),
+      tokenSost: document.getElementById("cfg-token-sost").value.replace(/^\s+|\s+$/g, ""),
+      urlEventi: document.getElementById("cfg-url-eventi").value.replace(/^\s+|\s+$/g, ""),
+      refreshMin: parseInt(document.getElementById("cfg-refresh").value, 10) || 5
+    };
+    try{
+      localStorage.setItem(LS_KEY_CFG, JSON.stringify(nuovoCfg));
+      mostraMsg("Salvato. Torna alla pagina principale e ricaricala.", true);
+    }catch(e){
+      mostraMsg("Non sono riuscito a salvare su questo browser (localStorage bloccato).", false);
+    }
+  };
+</script>
+</body>
+</html>
