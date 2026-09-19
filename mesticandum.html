@@ -313,6 +313,12 @@
   <footer>
     <span id="ultimo-agg">Aggiornato alle —</span>
     <button id="gear" title="Impostazioni">⚙ Impostazioni</button>
+    <!-- Collegamento normale (tag <a>, non un pulsante gestito da JavaScript): su alcuni
+         browser di LIM i pulsanti/le scorciatoie "a comparsa" vengono trattati come popup e
+         bloccati, mentre un link vero e proprio come questo si comporta come un link
+         qualunque di un sito normale (es. google.com) e quindi non viene bloccato. Apre la
+         pagina Impostazioni separata, sempre nella stessa finestra. -->
+    <a id="link-impostazioni" href="impostazioni.html" style="color:inherit;opacity:0.55;text-decoration:underline;font-size:inherit;">⚙ Impostazioni (pagina separata)</a>
   </footer>
 </div>
 
@@ -323,23 +329,33 @@
     <p class="help">
       URL del Web App di Google Apps Script di SOStituto (lo stesso già usato per la condivisione con la vicepreside)
       e la sua parola segreta. La pagina chiama <code>URL?token=...</code> — nessun'altra azione: il server risponde
-      sempre con l'intero registro, e qui si estrae solo il giorno di oggi. Le uscite didattiche vere non sono ancora
-      esposte da questo backend: per ora quella scheda si popola solo dagli eventi tipo "uscita" (sotto).
+      sempre con l'intero registro, e qui si estrae solo il giorno di oggi.
     </p>
     <label>URL Apps Script — SOStituto</label>
     <input type="url" id="cfg-url" placeholder="https://script.google.com/macros/s/xxxxx/exec">
     <label>Parola segreta — SOStituto</label>
     <input type="password" id="cfg-token-sost" placeholder="la stessa impostata in SOStituto">
 
-    <h3>Fonte eventi (attività funzionali / formazione / uscite)</h3>
+    <h3>Fonte eventi (attività funzionali / formazione / uscite manuali)</h3>
     <p class="help">
       URL del Web App Apps Script dedicato a Mesticandum, dove le Funzioni strumentali inseriscono gli eventi dal loro modulo
       (file <code>mesticandum-eventi.html</code>). La pagina chiamerà <code>URL?action=eventi&amp;data=AAAA-MM-GG</code>,
       aspettandosi un array JSON già filtrato per quella data. Gli eventi di tipo "uscita" finiscono nella scheda
-      "Uscite e altri eventi", insieme a quelle vere e proprie lette da SOStituto.
+      "Uscite e altri eventi", insieme a quelle vere lette dal foglio Uscite (sotto).
     </p>
     <label>URL Apps Script — Eventi Mesticandum</label>
     <input type="url" id="cfg-url-eventi" placeholder="https://script.google.com/macros/s/yyyyy/exec">
+
+    <h3>Fonte uscite/viaggi (foglio compilato dalla FS viaggi)</h3>
+    <p class="help">
+      URL del Web App Apps Script che legge in sola lettura il foglio "Uscite" compilato dalla Funzione strumentale
+      viaggi, e la sua parola segreta. La pagina chiama <code>URL?token=...</code>: il server risponde con le uscite
+      confermate (classi, date, ore, accompagnatori), che vengono aggiunte alla scheda "Uscite e altri eventi".
+    </p>
+    <label>URL Apps Script — Uscite/Viaggi FS</label>
+    <input type="url" id="cfg-url-viaggi" placeholder="https://script.google.com/macros/s/zzzzz/exec">
+    <label>Parola segreta — Uscite/Viaggi FS</label>
+    <input type="password" id="cfg-token-viaggi" placeholder="la stessa impostata nello script Uscite">
 
     <div class="row">
       <div>
@@ -349,9 +365,9 @@
     </div>
     <button class="btn btn-primary" id="salva-fonte">Salva</button>
     <p class="help" style="margin-top:8px;">
-      Gli URL dei due Apps Script sono già precompilati di default (non sono un segreto: da soli non permettono
-      di leggere nulla). Su un dispositivo nuovo (es. la LIM) l'unica cosa da digitare a mano, una volta, resta
-      la parola segreta di SOStituto qui sopra — corta, niente link da trascrivere.
+      Gli URL dei tre Apps Script sono già precompilati di default (non sono un segreto: da soli non
+      permettono di leggere nulla). Su un dispositivo nuovo (es. la LIM) le uniche cose da digitare a
+      mano, una volta, restano le parole segrete qui sopra — corte, niente link da trascrivere.
     </p>
 
     <h3>Aggiunta rapida locale (solo su questo schermo)</h3>
@@ -413,6 +429,7 @@
      quello che c'è in localStorage su quel browser, anche se questi default cambiassero in futuro. */
   var URL_SOSTITUTO_DEFAULT = "https://script.google.com/macros/s/AKfycbw0ZHdlNTSYIFLOsNjeAEzR7CvA_GsYiOGHmqIjw2dnvHBPbKQ6GpAwGQxMhWvDLY15Wg/exec";
   var URL_EVENTI_DEFAULT = "https://script.google.com/macros/s/AKfycbxNQ8nA3sOSj6xicP_TOHU1uC313A87WpPpo_Akagn9DghHsTSom29DaQL5gyFcmmUh/exec";
+  var URL_VIAGGI_DEFAULT = "https://script.google.com/macros/s/AKfycbzSjJRo-hYNFlHu1MMnS1LwxcNch2DxdhIxtN-HpJj1Bc3sDtr7fK_AaUMd4tMxhgrl/exec";
 
   function caricaCfg(){
     try{
@@ -421,10 +438,12 @@
         var c = JSON.parse(raw);
         if(c.urlEventi === undefined) c.urlEventi = ""; // migrazione da versioni precedenti
         if(c.tokenSost === undefined) c.tokenSost = "";
+        if(c.urlViaggi === undefined) c.urlViaggi = URL_VIAGGI_DEFAULT;
+        if(c.tokenViaggi === undefined) c.tokenViaggi = "";
         return c;
       }
     }catch(e){}
-    return { url: URL_SOSTITUTO_DEFAULT, urlEventi: URL_EVENTI_DEFAULT, tokenSost:"", refreshMin:5 };
+    return { url: URL_SOSTITUTO_DEFAULT, urlEventi: URL_EVENTI_DEFAULT, tokenSost:"", urlViaggi: URL_VIAGGI_DEFAULT, tokenViaggi:"", refreshMin:5 };
   }
   function salvaCfg(cfg){
     try{ localStorage.setItem(LS_KEY_CFG, JSON.stringify(cfg)); }catch(e){}
@@ -585,19 +604,27 @@
      per le uscite. Questa funzione resta pronta per quando/se ne verrà esposto uno (stessa forma
      già concordata: classi/meta/orario/accompagnatori/dataInizio/dataFine) — per ora non è collegata
      a nessun fetch, e la scheda "Uscite e altri eventi" si popola solo dagli eventi tipo "uscita". */
-  function normalizzaUscite(arr){
+  /* ---------- uscite didattiche vere, dal foglio "Uscite" compilato dalla FS viaggi ----------
+     Il backend (script separato, sola lettura) risponde con { ok, uscite:[...] }, dove ogni
+     uscita ha: dal/al (date ISO, l'intervallo dei giorni coperti), ore (array di numeri, vuoto
+     = giornata intera), classi (array di sigle tipo "1A"), accomp (array di nomi), nota (testo
+     libero). Qui si filtra per un giorno preciso (oggi o uno dei prossimi) e si porta nella
+     stessa forma { titolo, quando, dettagli } usata da creaRiga. */
+  function normalizzaViaggi(arr, iso){
     if(!Array.isArray(arr)) return [];
-    var oggi = oggiISO();
     return arr
       .filter(function(u){
-        var ini = u.dataInizio || oggi, fine = u.dataFine || ini;
-        return ini <= oggi && oggi <= fine;
+        var dal = u.dal || iso, al = u.al || dal;
+        return dal <= iso && iso <= al;
       })
       .map(function(u){
+        var classi = Array.isArray(u.classi) ? u.classi.join(", ") : (u.classi || "");
+        var accomp = Array.isArray(u.accomp) ? u.accomp.join(", ") : (u.accomp || "");
+        var ore = (Array.isArray(u.ore) && u.ore.length) ? "Ore " + u.ore.join(", ") : "Giornata intera";
         return {
-          titolo: (u.classi||"?") + " — " + (u.meta||""),
-          quando: u.orario || "",
-          dettagli: u.accompagnatori ? "Accompagnatori: " + u.accompagnatori : ""
+          titolo: classi + (u.nota ? " — " + u.nota : ""),
+          quando: ore,
+          dettagli: accomp ? "Accompagnatori: " + accomp : ""
         };
       });
   }
@@ -664,21 +691,34 @@
       })
       .catch(function(){ renderLista("lista-sostituzioni", [], "Impossibile leggere i dati (controlla l'URL SOStituto nelle Impostazioni)."); });
 
-    /* Uscite / attività funzionali / formazione: un'unica fonte, il backend Eventi Mesticandum,
-       più le aggiunte rapide locali. Non c'è (ancora) un canale SOStituto per le uscite vere.
-       Oltre a oggi, si guarda anche ai prossimi N_GIORNI_PROSSIMI giorni, per mostrarli sotto,
-       a carattere più piccolo. Questo riepilogo NON riguarda la scheda Sostituzioni, che resta
-       solo sul giorno corrente.
-       IMPORTANTE: una SOLA chiamata (azione "eventiRange", che risponde con tutti i giorni in
-       un colpo) — richiedere ogni giorno con una fetch separata (7 richieste quasi simultanee)
-       faceva sì che Apps Script ne rifiutasse/perdesse alcune. */
+    /* Uscite / attività funzionali / formazione: tre fonti in tutto — il backend Eventi
+       Mesticandum, le aggiunte rapide locali, e (solo per le uscite) il backend separato che
+       legge il foglio "Uscite" compilato dalla FS viaggi. Oltre a oggi, si guarda anche ai
+       prossimi N_GIORNI_PROSSIMI giorni, per mostrarli sotto, a carattere più piccolo. Questo
+       riepilogo NON riguarda la scheda Sostituzioni, che resta solo sul giorno corrente.
+       IMPORTANTE: una SOLA chiamata per gli eventi (azione "eventiRange", che risponde con
+       tutti i giorni in un colpo) — richiedere ogni giorno con una fetch separata (7 richieste
+       quasi simultanee) faceva sì che Apps Script ne rifiutasse/perdesse alcune.
+       Le due fonti (eventi e viaggi) vengono caricate in parallelo mA restano indipendenti:
+       ognuna intercetta i propri errori e "si arrende" a un array vuoto/oggetto vuoto invece di
+       far fallire anche l'altra — così se lo script Uscite/Viaggi non è ancora configurato (o è
+       giù) le attività funzionali/formazione restano comunque visibili, e viceversa. */
     var isoProssimi = [];
     for(var k=1;k<=N_GIORNI_PROSSIMI;k++){ isoProssimi.push(addDays(iso,k)); }
     var giorniTotali = 1 + N_GIORNI_PROSSIMI;
 
     var promessaEventi = cfg.urlEventi
-      ? fetch(cfg.urlEventi + "?action=eventiRange&data=" + iso + "&giorni=" + giorniTotali).then(function(r){ return r.json(); })
+      ? fetch(cfg.urlEventi + "?action=eventiRange&data=" + iso + "&giorni=" + giorniTotali)
+          .then(function(r){ return r.json(); })
+          .catch(function(){ return null; }) // null = segnala errore (distinto da "nessun evento")
       : Promise.resolve({});
+
+    var promessaViaggi = cfg.urlViaggi
+      ? fetch(cfg.urlViaggi + "?token=" + encodeURIComponent(cfg.tokenViaggi || ""))
+          .then(function(r){ return r.json(); })
+          .then(function(risp){ return (risp && risp.ok && Array.isArray(risp.uscite)) ? risp.uscite : []; })
+          .catch(function(){ return []; })
+      : Promise.resolve([]);
 
     var DEF_TIPI = [
       { tipo:"uscita",     elId:"lista-uscite",     vuoto:"Nessuna uscita né altro evento oggi." },
@@ -686,25 +726,28 @@
       { tipo:"formazione", elId:"lista-formazione", vuoto:"Nessun impegno di formazione oggi." }
     ];
 
-    promessaEventi
-      .then(function(mappaGiorni){
-        if(!mappaGiorni || typeof mappaGiorni !== "object" || Array.isArray(mappaGiorni)) mappaGiorni = {};
-        DEF_TIPI.forEach(function(d){
-          var righeOggi = normalizzaEventi(mappaGiorni[iso], d.tipo).concat(eventiLocaliPerData(d.tipo, iso));
-          var prossimi = isoProssimi.map(function(gIso){
-            return { iso: gIso, righe: normalizzaEventi(mappaGiorni[gIso], d.tipo).concat(eventiLocaliPerData(d.tipo, gIso)) };
-          });
-          renderListaConProssimi(d.elId, righeOggi, d.vuoto, prossimi);
+    Promise.all([promessaEventi, promessaViaggi]).then(function(risultati){
+      var mappaGiorni = risultati[0];
+      var eventiOk = mappaGiorni && typeof mappaGiorni === "object" && !Array.isArray(mappaGiorni);
+      if(!eventiOk) mappaGiorni = {};
+      var vagliUscite = risultati[1] || [];
+      var msgEventiErr = "Impossibile leggere i dati (controlla l'URL Eventi nelle Impostazioni).";
+
+      DEF_TIPI.forEach(function(d){
+        var righeOggi = normalizzaEventi(mappaGiorni[iso], d.tipo).concat(eventiLocaliPerData(d.tipo, iso));
+        if(d.tipo === "uscita") righeOggi = righeOggi.concat(normalizzaViaggi(vagliUscite, iso));
+        var prossimi = isoProssimi.map(function(gIso){
+          var righe = normalizzaEventi(mappaGiorni[gIso], d.tipo).concat(eventiLocaliPerData(d.tipo, gIso));
+          if(d.tipo === "uscita") righe = righe.concat(normalizzaViaggi(vagliUscite, gIso));
+          return { iso: gIso, righe: righe };
         });
-      })
-      .catch(function(){
-        var msg = "Impossibile leggere i dati (controlla l'URL Eventi nelle Impostazioni).";
-        DEF_TIPI.forEach(function(d){
-          var righeOggi = eventiLocaliPerData(d.tipo, iso);
-          var prossimi = isoProssimi.map(function(gIso){ return { iso:gIso, righe: eventiLocaliPerData(d.tipo, gIso) }; });
-          renderListaConProssimi(d.elId, righeOggi, msg, prossimi);
-        });
+        // Il messaggio d'errore sugli eventi si vede solo se per quella scheda non resta
+        // comunque nulla da mostrare (es. le uscite vere dal foglio Viaggi possono bastare
+        // da sole anche col backend Eventi giù).
+        var vuotoTxt = (!eventiOk && righeOggi.length === 0) ? msgEventiErr : d.vuoto;
+        renderListaConProssimi(d.elId, righeOggi, vuotoTxt, prossimi);
       });
+    });
 
     document.getElementById("ultimo-agg").textContent = "Aggiornato alle " + pad(new Date().getHours())+":"+pad(new Date().getMinutes());
   }
@@ -715,6 +758,8 @@
     document.getElementById("cfg-url").value = cfg.url || "";
     document.getElementById("cfg-token-sost").value = cfg.tokenSost || "";
     document.getElementById("cfg-url-eventi").value = cfg.urlEventi || "";
+    document.getElementById("cfg-url-viaggi").value = cfg.urlViaggi || "";
+    document.getElementById("cfg-token-viaggi").value = cfg.tokenViaggi || "";
     document.getElementById("cfg-refresh").value = cfg.refreshMin || 5;
     renderEventiManualiPanel();
     overlay.classList.add("show");
@@ -740,6 +785,8 @@
     cfg.url = document.getElementById("cfg-url").value.trim();
     cfg.tokenSost = document.getElementById("cfg-token-sost").value.trim();
     cfg.urlEventi = document.getElementById("cfg-url-eventi").value.trim();
+    cfg.urlViaggi = document.getElementById("cfg-url-viaggi").value.trim();
+    cfg.tokenViaggi = document.getElementById("cfg-token-viaggi").value.trim();
     cfg.refreshMin = parseInt(document.getElementById("cfg-refresh").value, 10) || 5;
     salvaCfg(cfg);
     caricaERendi();

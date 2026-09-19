@@ -50,6 +50,12 @@
   <label for="cfg-url-eventi">URL Apps Script — Eventi Mesticandum</label>
   <input type="url" id="cfg-url-eventi" placeholder="https://script.google.com/macros/s/xxxxx/exec">
 
+  <label for="cfg-url-viaggi">URL Apps Script — Uscite/Viaggi FS</label>
+  <input type="url" id="cfg-url-viaggi" placeholder="https://script.google.com/macros/s/xxxxx/exec">
+
+  <label for="cfg-token-viaggi">Parola segreta — Uscite/Viaggi FS</label>
+  <input type="password" id="cfg-token-viaggi" placeholder="la stessa impostata nello script Uscite">
+
   <label for="cfg-refresh">Aggiorna ogni (minuti)</label>
   <input type="text" id="cfg-refresh" placeholder="5">
 
@@ -71,6 +77,7 @@
   // la prima volta che si apre questa pagina su un dispositivo nuovo.
   var URL_SOSTITUTO_DEFAULT = "https://script.google.com/macros/s/AKfycbw0ZHdlNTSYIFLOsNjeAEzR7CvA_GsYiOGHmqIjw2dnvHBPbKQ6GpAwGQxMhWvDLY15Wg/exec";
   var URL_EVENTI_DEFAULT = "https://script.google.com/macros/s/AKfycbxNQ8nA3sOSj6xicP_TOHU1uC313A87WpPpo_Akagn9DghHsTSom29DaQL5gyFcmmUh/exec";
+  var URL_VIAGGI_DEFAULT = "https://script.google.com/macros/s/AKfycbzSjJRo-hYNFlHu1MMnS1LwxcNch2DxdhIxtN-HpJj1Bc3sDtr7fK_AaUMd4tMxhgrl/exec";
 
   function caricaCfg(){
     try{
@@ -78,16 +85,20 @@
       if(raw){
         var c = JSON.parse(raw);
         if(c.urlEventi === undefined) c.urlEventi = "";
+        if(c.urlViaggi === undefined) c.urlViaggi = URL_VIAGGI_DEFAULT;
+        if(c.tokenViaggi === undefined) c.tokenViaggi = "";
         return c;
       }
     }catch(e){}
-    return { url: URL_SOSTITUTO_DEFAULT, urlEventi: URL_EVENTI_DEFAULT, tokenSost:"", refreshMin:5 };
+    return { url: URL_SOSTITUTO_DEFAULT, urlEventi: URL_EVENTI_DEFAULT, tokenSost:"", urlViaggi: URL_VIAGGI_DEFAULT, tokenViaggi:"", refreshMin:5 };
   }
 
   var cfg = caricaCfg();
   document.getElementById("cfg-url").value = cfg.url || "";
   document.getElementById("cfg-token-sost").value = cfg.tokenSost || "";
   document.getElementById("cfg-url-eventi").value = cfg.urlEventi || "";
+  document.getElementById("cfg-url-viaggi").value = cfg.urlViaggi || "";
+  document.getElementById("cfg-token-viaggi").value = cfg.tokenViaggi || "";
   document.getElementById("cfg-refresh").value = cfg.refreshMin || 5;
 
   function mostraMsg(testo, ok){
@@ -101,6 +112,8 @@
       url: document.getElementById("cfg-url").value.replace(/^\s+|\s+$/g, ""),
       tokenSost: document.getElementById("cfg-token-sost").value.replace(/^\s+|\s+$/g, ""),
       urlEventi: document.getElementById("cfg-url-eventi").value.replace(/^\s+|\s+$/g, ""),
+      urlViaggi: document.getElementById("cfg-url-viaggi").value.replace(/^\s+|\s+$/g, ""),
+      tokenViaggi: document.getElementById("cfg-token-viaggi").value.replace(/^\s+|\s+$/g, ""),
       refreshMin: parseInt(document.getElementById("cfg-refresh").value, 10) || 5
     };
     try{
