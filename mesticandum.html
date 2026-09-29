@@ -841,10 +841,64 @@
     });
   }
 
+  /* ---------- scorrimento automatico dei riquadri con troppe righe ----------
+     Le caselle (.card .body) sono già scorrevoli manualmente (overflow-y:auto), ma su un
+     monitor in sala docenti nessuno le tocca: qui le si fa scorrere da sole, lentamente, verso
+     il basso finché non si vede il fondo, con una pausa di lettura, poi risalgono in cima e
+     ripartono. Un solo ciclo con requestAnimationFrame controlla tutte le caselle, e chi non ha
+     bisogno di scorrere (il contenuto ci sta tutto) resta semplicemente fermo in cima. */
+  var AUTOSCROLL_VELOCITA_PX_SEC = 22;
+  var AUTOSCROLL_PAUSA_MS = 3500;
+  var statoAutoScroll = {};
+  var ultimoTickAutoScroll = null;
+
+  function avanzaAutoScroll(elId, dt){
+    var el = document.getElementById(elId);
+    if(!el) return;
+    var max = el.scrollHeight - el.clientHeight;
+    if(max <= 2){
+      if(el.scrollTop !== 0) el.scrollTop = 0;
+      delete statoAutoScroll[elId];
+      return;
+    }
+    var s = statoAutoScroll[elId];
+    if(!s){ s = statoAutoScroll[elId] = { fase:"giu" }; }
+    var ora = Date.now();
+    if(s.fase === "pausaGiu" || s.fase === "pausaSu"){
+      if(ora < s.pausaFino) return;
+      s.fase = (s.fase === "pausaGiu") ? "su" : "giu";
+    }
+    var passo = AUTOSCROLL_VELOCITA_PX_SEC * dt / 1000;
+    if(s.fase === "giu"){
+      el.scrollTop = Math.min(max, el.scrollTop + passo);
+      if(el.scrollTop >= max - 0.5){ s.fase = "pausaGiu"; s.pausaFino = ora + AUTOSCROLL_PAUSA_MS; }
+    } else {
+      el.scrollTop = Math.max(0, el.scrollTop - passo);
+      if(el.scrollTop <= 0.5){ s.fase = "pausaSu"; s.pausaFino = ora + AUTOSCROLL_PAUSA_MS; }
+    }
+  }
+
+  var ID_CASELLE_AUTOSCROLL = ["lista-sostituzioni", "lista-uscite", "lista-funzionali", "lista-formazione"];
+
+  function ticAutoScroll(){
+    var ora = Date.now();
+    var dt = ultimoTickAutoScroll ? (ora - ultimoTickAutoScroll) : 0;
+    ultimoTickAutoScroll = ora;
+    // In pausa mentre il pannello Impostazioni è aperto: non ha senso far scorrere i riquadri
+    // sotto un overlay che li nasconde, e si ricomincia da capo (dt=0) alla chiusura.
+    if(!overlay.classList.contains("show")){
+      ID_CASELLE_AUTOSCROLL.forEach(function(elId){ avanzaAutoScroll(elId, dt); });
+    } else {
+      ultimoTickAutoScroll = null;
+    }
+    requestAnimationFrame(ticAutoScroll);
+  }
+
   /* ---------- avvio + cicli di aggiornamento ---------- */
   aggiornaTestata();
   caricaERendi();
   setInterval(aggiornaTestata, 1000);
+  requestAnimationFrame(ticAutoScroll);
 
   // Link diretto alle Impostazioni (utile su dispositivi come la LIM dove il tocco sulla
   // rotellina non arriva a destinazione). Due modi, per compatibilità con browser diversi:
