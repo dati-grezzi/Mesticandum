@@ -64,6 +64,7 @@
     display:flex;justify-content:space-between;align-items:flex-end;
     border-bottom:0.3vw solid var(--petrolio);
     padding-bottom:1vw;margin-bottom:1.2vw;
+    padding-right:3.6vw; /* spazio di cortesia per non finire sotto il bottone #tema-toggle */
   }
   header .scuola{
     display:flex;align-items:center;gap:0.8vw;
@@ -285,7 +286,7 @@
   @media (max-width: 820px){
     html,body{ overflow:auto; height:auto; }
     #app{ height:auto; min-height:100dvh; min-height:100vh; padding:5vw 6vw; }
-    header{ flex-wrap:wrap; gap:2vw; }
+    header{ flex-wrap:wrap; gap:2vw; padding-right:50px; }
     #logo-slot svg{ width:28px; height:28px; }
     header .scuola-testi{ font-size:20px; }
     header .scuola small{ font-size:10px; }
